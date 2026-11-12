@@ -1,0 +1,9 @@
+# DELIBERATELY INSECURE lab SSH server. Expected QRisk results: critical.
+Port 22
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+
+KexAlgorithms diffie-hellman-group1-sha1,diffie-hellman-group14-sha1,curve25519-sha256
+HostKeyAlgorithms ssh-rsa,rsa-sha2-256,ssh-ed25519
+Ciphers aes128-cbc,3des-cbc,aes128-ctr
+MACs hmac-md5,hmac-sha1

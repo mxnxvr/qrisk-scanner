@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="{{ lang }}" dir="{{ dir }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ t.title }}</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #ffffff; --text: #16191d; --muted: #5d6570; --line: #e3e6ea;
+    /* Rating colours: checked for colour-blind separation and contrast (see NOTES.md #23). */
+    --critical: #b3261e; --vulnerable: #d96500; --hybrid: #2563c9; --safe: #2e7d32; --accent: #3949ab;
+  }
+  /* screen only, so printing / PDF export is always light */
+  @media screen and (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #111418; --card: #1a1e24; --text: #e8eaed; --muted: #9aa3ad; --line: #2b3038;
+      --critical: #dc3f55; --vulnerable: #c98500; --hybrid: #3987e5; --safe: #3fa45a; --accent: #8c9eff;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 15px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans Arabic", "Noto Naskh Arabic", Tahoma, sans-serif; }
+  html[dir="rtl"] body { font-size: 16px; line-height: 1.8; }
+  main { max-width: 1080px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 26px; margin: 0 0 4px; } h2 { font-size: 19px; margin: 36px 0 12px; }
+  h3 { font-size: 16px; margin: 0 0 10px; font-family: ui-monospace, Consolas, monospace; direction: ltr; text-align: start; }
+  html[dir="rtl"] h3 { text-align: right; }
+  .muted { color: var(--muted); } .small { font-size: 13px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 20px; }
+  .hero { display: grid; grid-template-columns: 170px 1fr; gap: 24px; align-items: center; }
+  .gauge text { font-weight: 700; fill: var(--text); }
+  .stack { display: flex; height: 14px; border-radius: 7px; overflow: hidden; background: var(--line); margin: 12px 0; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 14px; }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-inline-end: 6px; }
+  .r-critical { --c: var(--critical); } .r-quantum-vulnerable { --c: var(--vulnerable); }
+  .r-hybrid { --c: var(--hybrid); } .r-quantum-safe { --c: var(--safe); }
+  .fill { background: var(--c); } .dot { background: var(--c); }
+  .badge { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 600;
+           white-space: nowrap; color: var(--c); border: 1px solid var(--c); }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .tl .when { font-size: 22px; font-weight: 700; } .tl .count { font-size: 30px; font-weight: 700; color: var(--c); }
+  ol.recs { margin: 0; padding-inline-start: 22px; } ol.recs li { margin: 8px 0; }
+  code { font-family: ui-monospace, Consolas, monospace; font-size: 13px; background: var(--line);
+         padding: 1px 5px; border-radius: 4px; unicode-bidi: isolate; direction: ltr;
+         display: inline-block; max-width: 100%; overflow-wrap: anywhere; vertical-align: baseline; }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: start; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  html[dir="rtl"] th { letter-spacing: 0; font-size: 13px; }
+  td.asset { min-width: 190px; font-family: ui-monospace, Consolas, monospace; font-size: 13px; word-break: break-word; }
+  .ltr { direction: ltr; unicode-bidi: isolate; }
+  html[dir="rtl"] .ltr { text-align: right; }
+  .target { margin-top: 16px; }
+  footer { margin-top: 40px; font-size: 13px; color: var(--muted); }
+  @media (max-width: 640px) {
+    .hero { grid-template-columns: 1fr; justify-items: center; text-align: center; }
+    .grid3 { grid-template-columns: 1fr; }
+    th:nth-child(3), td:nth-child(3) { display: none; }
+  }
+  @page { size: A4; margin: 14mm 12mm; }
+  @media print {
+    :root { color-scheme: light; }
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    body { background: #fff; font-size: 12px; }
+    main { max-width: none; padding: 0; }
+    .card { break-inside: avoid; border-color: #d5d9de; }
+    .target { break-inside: auto; }
+    tr { break-inside: avoid; }
+    thead { display: table-header-group; }
+    h2 { break-after: avoid; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>{{ t.title }}</h1>
+  <div class="muted small">{{ generated_line }}</div>
+
+  <h2>{{ t.exec_summary }}</h2>
+  <section class="card hero">
+    {% set c = 326.73 %}{% set s = score if score is not none else 0 %}
+    {% set col = 'var(--safe)' if s >= 80 else 'var(--hybrid)' if s >= 50 else 'var(--vulnerable)' if s >= 25 else 'var(--critical)' %}
+    <svg class="gauge" viewBox="0 0 120 120" width="160" height="160" role="img" aria-label="{{ s }}/100">
+      <circle cx="60" cy="60" r="52" fill="none" stroke="var(--line)" stroke-width="10"/>
+      <circle cx="60" cy="60" r="52" fill="none" stroke="{{ col }}" stroke-width="10" stroke-linecap="round"
+              stroke-dasharray="{{ (s / 100 * c)|round(2) }} {{ c }}" transform="rotate(-90 60 60)"/>
+      <text x="60" y="62" text-anchor="middle" font-size="30">{{ score if score is not none else '–' }}</text>
+      <text x="60" y="82" text-anchor="middle" font-size="11" style="fill: var(--muted); font-weight: 400">{{ t.out_of }}</text>
+    </svg>
+    <div>
+      <div style="font-size: 20px; font-weight: 700; color: {{ col }}">{{ grade }}</div>
+      <p style="margin: 6px 0 0">
+        {% for part in summary %}{% if part.critical %}<strong style="color: var(--critical)">{{ part.text }}</strong>{% else %}{{ part.text }}{% endif %} {% endfor %}
+      </p>
+      <div class="stack">
+        {% for r in ratings %}{% if counts[r] %}<div class="fill r-{{ r.value }}" style="width: {{ shares[r] }}%" title="{{ rating_label[r] }}: {{ counts[r] }}"></div>{% endif %}{% endfor %}
+      </div>
+      <div class="legend">
+        {% for r in ratings %}<span class="r-{{ r.value }}"><span class="dot"></span>{{ rating_label[r] }} <strong>{{ counts[r] }}</strong></span>{% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <h2>{{ t.nist }}</h2>
+  <section class="grid3 tl">
+    {% for item in timeline %}
+    <div class="card r-{{ item.rating.value }}">
+      <div class="when">{{ item.when }}</div>
+      <div class="count">{{ item.count }}</div>
+      <div class="muted small">{{ item.label }}</div>
+    </div>
+    {% endfor %}
+  </section>
+
+  {% if top_recs %}
+  <h2>{{ t.priority }}</h2>
+  <section class="card">
+    <ol class="recs">
+      {% for r in top_recs[:10] %}
+      <li class="r-{{ r.rating.value }}"><span class="badge">{{ rating_label[r.rating] }}</span>
+        {{ r.text|code }} <span class="muted small">{{ count_label(r.count) }}</span></li>
+      {% endfor %}
+    </ol>
+  </section>
+  {% endif %}
+
+  <h2>{{ t.technical }}</h2>
+  {% if t.technical_note %}<p class="muted small">{{ t.technical_note }}</p>{% endif %}
+  <p class="muted small">{{ t.scale }}
+    {% for r in ratings %}<span class="r-{{ r.value }}"><span class="badge">{{ rating_label[r] }}</span> {{ rating_meaning[r] }}{{ ' · ' if not loop.last }}</span>{% endfor %}
+  </p>
+  {% for target, findings in by_target.items() %}
+  <section class="card target">
+    <h3>{{ target }}</h3>
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>{{ t.th_rating }}</th><th>{{ t.th_asset }}</th><th>{{ t.th_category }}</th><th>{{ t.th_why }}</th><th>{{ t.th_nist }}</th></tr></thead>
+      <tbody>
+      {% for f in findings %}
+        <tr class="r-{{ f.rating.value }}">
+          <td><span class="badge">{{ rating_label[f.rating] }}</span></td>
+          <td class="asset"><div class="ltr">{{ f.asset }}</div>{% if f.location %}<div class="muted small ltr">{{ f.where }}</div>{% endif %}</td>
+          <td class="small">{{ category(f.category) }}</td>
+          <td><div class="ltr">{{ f.reason }}</div><div class="muted small" dir="auto">{{ rec(f.recommendation)|code }}</div></td>
+          <td class="small muted"><span class="ltr">{{ f.nist or '' }}</span></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </section>
+  {% endfor %}
+
+  {% if notes %}
+  <h2>{{ t.notes }}</h2>
+  <section class="card">
+    <ul class="small" style="margin: 0; padding-inline-start: 18px">
+      {% for n in notes %}<li><strong>{{ note_level(n.level) }}</strong> · <code dir="ltr">{{ n.target }}</code> <span class="ltr">{{ n.message }}</span></li>{% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  <footer>{{ t.footer }}</footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,66 @@
+# QRisk lab: deliberately weak, classical and post-quantum servers to scan.
+#
+#   docker compose -f lab/docker-compose.yml up -d --build
+#   docker compose -f lab/docker-compose.yml down
+#
+# Every port is bound to 127.0.0.1 only. These servers are insecure on purpose:
+# never expose them to a network.
+
+name: qrisk-lab
+
+x-nginx: &nginx
+  build: ./nginx
+  image: qrisk-lab-nginx
+  restart: unless-stopped
+  depends_on:
+    certgen:
+      condition: service_completed_successfully
+
+x-ssh: &ssh
+  build: ./ssh
+  image: qrisk-lab-ssh
+  restart: unless-stopped
+
+services:
+  # One-shot job: creates the lab certificates in lab/nginx/certs (RSA-1024/SHA-1,
+  # ECDSA P-256, ECDSA P-384 and an ML-DSA-65 sample), then exits.
+  certgen:
+    build: ./nginx
+    image: qrisk-lab-nginx
+    command: ["sh", "/lab/certgen.sh"]
+    volumes:
+      - ./certgen.sh:/lab/certgen.sh:ro
+      - ./nginx/certs:/out
+
+  weak-tls:        # TLS 1.0/1.1, static RSA, RSA-1024 SHA-1 certificate (3DES is configured but Alpine's OpenSSL drops it)
+    <<: *nginx
+    ports: ["127.0.0.1:8443:443"]
+    volumes:
+      - ./nginx/certs:/etc/nginx/certs:ro
+      - ./nginx/sites/weak.conf:/etc/nginx/site.conf:ro
+
+  modern-tls:      # TLS 1.2/1.3, ECDHE, ECDSA P-256: good today, quantum-vulnerable
+    <<: *nginx
+    ports: ["127.0.0.1:8444:443"]
+    volumes:
+      - ./nginx/certs:/etc/nginx/certs:ro
+      - ./nginx/sites/modern.conf:/etc/nginx/site.conf:ro
+
+  pq-tls:          # TLS 1.3 only, X25519MLKEM768 / SecP384r1MLKEM1024 / MLKEM1024 (OpenSSL 3.5)
+    <<: *nginx
+    ports: ["127.0.0.1:8445:443"]
+    volumes:
+      - ./nginx/certs:/etc/nginx/certs:ro
+      - ./nginx/sites/pq.conf:/etc/nginx/site.conf:ro
+
+  weak-ssh:        # diffie-hellman-group1-sha1, ssh-rsa, 3des-cbc, hmac-md5
+    <<: *ssh
+    ports: ["127.0.0.1:2222:22"]
+    volumes:
+      - ./ssh/weak/sshd_config:/etc/ssh/sshd_config:ro
+
+  pq-ssh:          # mlkem768x25519-sha256 + sntrup761x25519 only (OpenSSH 10)
+    <<: *ssh
+    ports: ["127.0.0.1:2223:22"]
+    volumes:
+      - ./ssh/pq/sshd_config:/etc/ssh/sshd_config:ro
