@@ -69,6 +69,11 @@ def main(argv: list[str] | None = None) -> int:
     if not (args.tls or args.ssh or args.path or args.code or args.config):
         parser.error("give at least one target: --tls, --ssh, --path, --code or --config")
 
+    # A redirected stream on Windows is usually cp1252: replace characters it can't hold
+    # (e.g. in a finding's text) instead of crashing halfway through the summary.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(errors="replace")
     console = Console(stderr=args.quiet)
     with console.status("Scanning…") as status:
         result = run_scan(

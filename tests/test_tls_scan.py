@@ -1,3 +1,5 @@
+import ssl
+
 import pytest
 
 from qrisk.models import Rating
@@ -21,8 +23,16 @@ def test_scan_local_server(tls_server):
     cert = next(f for f in findings if f.category == "certificate-key")
     assert cert.asset.startswith("RSA-2048") and cert.rating is Rating.QUANTUM_VULNERABLE
     assert cert.cert.key_size == 2048
-    # Python's bundled OpenSSL has no ML-KEM, so the scanner should warn about it.
-    assert any("no post-quantum key exchange" in n.message for n in notes)
+    # The test server is Python's own OpenSSL. Since 3.5 it offers the X25519MLKEM768 hybrid
+    # (GitHub's newer Python builds have it); older versions offer no post-quantum group at all.
+    # Either way the scanner must report what the server really does.
+    pq = [f for f in findings if f.category == "key-exchange" and f.asset.startswith("X25519MLKEM768")]
+    warned = any("no post-quantum key exchange" in n.message for n in notes)
+    if ssl.OPENSSL_VERSION_INFO >= (3, 5):
+        assert pq and pq[0].rating is Rating.HYBRID, "OpenSSL 3.5+ server: hybrid ML-KEM should be found"
+        assert not warned
+    else:
+        assert not pq and warned, "pre-3.5 OpenSSL server: no PQ group, so the scanner should warn"
     assert any("not trusted" in n.message for n in notes)
 
 

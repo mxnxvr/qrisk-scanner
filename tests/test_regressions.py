@@ -173,3 +173,22 @@ def test_23_rating_colours_are_distinguishable_in_light_and_dark_mode():
 
 def test_23_the_check_catches_the_original_colours():
     assert _delta_e("#b08f00", "#e8710a") < 15  # the old gold Hybrid vs orange Quantum-vulnerable
+
+
+# --- #24: the summary crashed when output was redirected on Windows (cp1252) -----------------
+# Found by the GitHub Actions Windows runner: '●' can't be encoded in cp1252.
+
+def test_24_summary_survives_a_legacy_output_encoding(tmp_path, cert_factory):
+    import os
+    import sys
+    from cryptography.hazmat.primitives import serialization
+
+    _, cert = cert_factory()
+    (tmp_path / "c.pem").write_bytes(cert.public_bytes(serialization.Encoding.PEM))
+    env = {**os.environ, "PYTHONIOENCODING": "cp1252", "PYTHONUTF8": "0", "NO_COLOR": "1"}
+    proc = subprocess.run([sys.executable, "-m", "qrisk", "scan", "--path", str(tmp_path)],
+                          capture_output=True, env=env, timeout=120)
+    out, err = proc.stdout.decode("cp1252"), proc.stderr.decode("cp1252")
+    assert proc.returncode == 0, err
+    assert "Quantum Readiness" in out and "Top recommendations" in out
+    assert "UnicodeEncodeError" not in err

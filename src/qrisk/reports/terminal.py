@@ -27,8 +27,18 @@ def score_style(score: int | None) -> str:
     return "green" if score >= 80 else "dodger_blue1" if score >= 50 else "dark_orange" if score >= 25 else "red"
 
 
+def bullet(console: Console) -> str:
+    """'●' where the output can show it; '*' on legacy encodings such as cp1252 (piped output on Windows)."""
+    try:
+        "●".encode(console.encoding)
+        return "●"
+    except (UnicodeEncodeError, LookupError):
+        return "*"
+
+
 def render(result: ScanResult, console: Console | None = None) -> None:
     console = console or Console()
+    dot = bullet(console)
     score = readiness_score(result.findings)
     counts = result.counts()
 
@@ -37,7 +47,7 @@ def render(result: ScanResult, console: Console | None = None) -> None:
     headline.append("n/a" if score is None else f"{score}/100", style=f"bold {score_style(score)}")
     headline.append(f"  ({grade(score)})\n", style=score_style(score))
     for r in Rating:
-        headline.append("● ", style=STYLES[r])
+        headline.append(f"{dot} ", style=STYLES[r])
         headline.append(f"{r.label} {counts[r]}   ")
     console.print(Panel(headline, title="QRisk Scanner", subtitle=f"{len(result.targets)} target(s)", expand=False))
 
@@ -60,7 +70,7 @@ def render(result: ScanResult, console: Console | None = None) -> None:
         if recs:
             console.print("\n[bold]Top recommendations[/bold]")
             for (rating, rec), n in sorted(recs.items(), key=lambda kv: (kv[0][0].severity, -kv[1]))[:8]:
-                console.print(Text("  ● ", style=STYLES[rating]), Text(f"{rec}  ", style=""),
+                console.print(Text(f"  {dot} ", style=STYLES[rating]), Text(f"{rec}  ", style=""),
                               Text(f"({n} finding{'s' if n > 1 else ''})", style="dim"), sep="")
 
     if result.notes:
