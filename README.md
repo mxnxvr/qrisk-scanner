@@ -79,7 +79,7 @@ Each finding includes:
 
 - **Terminal**: a colour-coded table with the top recommendations.
 - **CycloneDX 1.6 CBOM** (`--cbom`): algorithms, certificates, keys and protocols (with cipher suites) as `cryptographic-asset` components, linked through `dependencies`. Code findings are recorded as evidence occurrences with file and line. The test suite validates it against the official schema.
-- **HTML report** (`--html`): an executive summary with a score gauge, NIST deadline counts and priority actions, followed by technical detail. It's self-contained, prints cleanly and supports dark mode.
+- **HTML report** (`--html`): an executive summary with a score gauge, NIST deadline counts and priority actions, followed by technical detail. It's self-contained and uses a dark "dusk" palette on screen, with a light version for printing and PDF.
 - **PDF report** (`--pdf`): the same report, printed to A4 by an installed Chrome, Edge or Chromium (no extra Python dependencies; set `QRISK_BROWSER` to choose one).
 - **Arabic report** (`--lang ar`): a right-to-left HTML/PDF report. The executive summary, ratings, deadlines and priority actions are in Arabic; technical reasons stay in English so algorithm names stay exact.
 - **JSON** (`--json`): for other tools and pipelines.

@@ -12,19 +12,22 @@ from rich.text import Text
 from ..models import Rating, ScanResult
 from ..scoring import grade, readiness_score
 
+# The report's "dusk" screen palette (see report.html.j2). Rich converts these to the nearest colour
+# on terminals without true colour.
+CRITICAL, VULNERABLE, HYBRID, SAFE, ACCENT = "#e8576b", "#f2b56b", "#8f9fd9", "#9ccfb7", "#e98a6a"
 STYLES = {
-    Rating.CRITICAL: "bold red",
-    Rating.QUANTUM_VULNERABLE: "dark_orange",
-    Rating.HYBRID: "dodger_blue1",  # not yellow: too close to orange
-    Rating.QUANTUM_SAFE: "green",
+    Rating.CRITICAL: f"bold {CRITICAL}",
+    Rating.QUANTUM_VULNERABLE: VULNERABLE,
+    Rating.HYBRID: HYBRID,
+    Rating.QUANTUM_SAFE: SAFE,
 }
-NOTE_STYLES = {"error": "red", "warning": "yellow", "info": "dim"}
+NOTE_STYLES = {"error": CRITICAL, "warning": VULNERABLE, "info": "dim"}
 
 
 def score_style(score: int | None) -> str:
     if score is None:
         return "dim"
-    return "green" if score >= 80 else "dodger_blue1" if score >= 50 else "dark_orange" if score >= 25 else "red"
+    return SAFE if score >= 80 else HYBRID if score >= 50 else VULNERABLE if score >= 25 else CRITICAL
 
 
 def bullet(console: Console) -> str:
@@ -49,7 +52,8 @@ def render(result: ScanResult, console: Console | None = None) -> None:
     for r in Rating:
         headline.append(f"{dot} ", style=STYLES[r])
         headline.append(f"{r.label} {counts[r]}   ")
-    console.print(Panel(headline, title="QRisk Scanner", subtitle=f"{len(result.targets)} target(s)", expand=False))
+    console.print(Panel(headline, title=f"[bold {ACCENT}]QRisk Scanner[/]", subtitle=f"{len(result.targets)} target(s)",
+                        border_style=ACCENT, expand=False))
 
     if result.findings:
         table = Table(show_lines=False, header_style="bold", expand=True)

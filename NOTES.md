@@ -69,7 +69,7 @@ Every lab server got the rating it was built for: weak → Critical, classical �
 
 ### 10. PDF export would have been dark
 - **Cause:** Headless Edge follows the system dark-mode setting, and the print stylesheet kept the dark colours.
-- **Fix:** Apply dark-mode colours to screen only (`@media screen and (prefers-color-scheme: dark)`), so print is always light.
+- **Fix:** Apply dark-mode colours to screen only (`@media screen and (prefers-color-scheme: dark)`), so print is always light. (Since the dusk palette, #26, the screen is always dark and `@media print` overrides it with a light paper palette; the test checks that guarantee instead.)
 
 ### 11. Tests took 106 seconds instead of 6
 - **Cause:** On Windows, `localhost` resolves to `::1` (IPv6) first. The test TLS server listened on IPv4 only, so each of ~40 connections waited ~1 s before falling back.
@@ -146,6 +146,12 @@ An outside review of the whole code base found these. Several are the kind of bu
 - **Fix:** The test now asks which OpenSSL it is running on: with 3.5+ the scanner must report the hybrid group and rate it Hybrid; with older versions it must find no PQ group and warn.
 - **Lesson:** The scanner was right and the test was wrong: it hard-coded a fact about the environment ("OpenSSL has no ML-KEM") that stopped being true. Post-quantum support is arriving in ordinary libraries right now, which is exactly the migration this tool measures. Tests should assert behaviour relative to the environment, not a snapshot of it. Reading the CI log (with `gh run view --log-failed`) found this in a minute after guessing had pointed at the wrong thing (Chrome).
 
+### 26. Re-theming the report without undoing #10 and #23
+- **Change:** The report and terminal now use the "dusk" palette of my portfolio site (plum, cream, coral; amber, periwinkle and mint for the ratings). The screen is always dark, like the site. Print and PDF get a light "paper" version of the same hues.
+- **What could have broken:** #10 (a dark PDF) and #23 (indistinguishable ratings). Coral, the site's accent, could not be the Critical colour: it is only ΔE 10.9 from amber. Critical became a rose (`#e8576b`); the print palette was found by a small search over shades for the best worst-case colour-blind separation that still passes contrast.
+- **Fix to the checks:** Test #23 now also simulates protanopia, deuteranopia and tritanopia (Machado 2009) and requires every rating pair to stay ≥ 8 apart, with ≥ 4.5:1 contrast because badge text is small. Both dusk palettes beat the old validated one (worst case 9.6 / 9.8 vs 2.8). Test #10 now checks that the light palette lives in `@media print`; the generated PDFs were checked to contain only the paper colours.
+- **Lesson:** A visual change is a regression risk like any other. Encode the properties you care about (contrast, separation, print is light) as tests, then the look can change freely.
+
 ---
 
 ## Regression tests
@@ -161,7 +167,7 @@ Every bug above has a test that fails if it comes back.
 | 5–7 | PQ TLS, TLS 1.2 curves/DHE, SSH host key | `test_tls_scan.py`, `test_ssh_scan.py` (local servers), `test_tlswire.py` (HelloRetryRequest parsing) |
 | 8 | `p += u4()` in the JKS parser | `test_regressions.py::test_08_…`, checked by putting the bug back: the test fails |
 | 9 | Backwards date in Arabic | `test_regressions.py::test_09_…` (see below) |
-| 10 | Dark PDF | `test_regressions.py::test_10_…` |
+| 10 | Dark PDF | `test_regressions.py::test_10_…` (the print palette is light and lives in `@media print`) |
 | 11 | Slow tests (IPv6 `localhost`) | none: it's a test-speed issue, visible as the suite's run time |
 | 12, 16 | `--fail-under` and empty / failed scans | `test_regressions.py::test_12_…` (empty fails unless `--allow-empty`; unreachable target fails) |
 | 13 | CRLF in lab files | `test_regressions.py::test_13_…` asks `git check-attr`, i.e. what a fresh clone gets |
@@ -173,7 +179,7 @@ Every bug above has a test that fails if it comes back.
 | 20 | Includes outside the folder | `test_robustness.py::test_external_includes_need_an_explicit_flag` |
 | 21 | Edge returns before the PDF exists | `test_i18n_pdf.py::test_pdf_export` (runs the real browser) |
 | 22 | `localhost` → dead IPv6 → 2 s per connection | `test_robustness.py::test_localhost_scan_of_ipv4_only_server_is_fast` (IPv4-only server scanned as `localhost`) |
-| 23 | Rating colours too similar | `test_regressions.py::test_23_…` (OKLab ΔE ≥ 15 between neighbouring ratings and ≥ 3:1 contrast, light and dark; the old pair is shown to fail) |
+| 23, 26 | Rating colours too similar | `test_regressions.py::test_23_…` (screen and print palettes: OKLab ΔE ≥ 15 between neighbouring ratings, ≥ 4.5:1 contrast, and every pair ≥ 8 apart under simulated protanopia, deuteranopia and tritanopia; the old gold/orange pair and the pre-dusk palette are shown to fail) |
 | 24 | `●` crashed piped output on Windows | `test_regressions.py::test_24_…` (runs the CLI as a subprocess with cp1252 output; fails with the bug put back) and the CI smoke test |
 | 25 | Test assumed no ML-KEM in OpenSSL | `test_tls_scan.py::test_scan_local_server` (checks the PQ result against `ssl.OPENSSL_VERSION_INFO`; CI covers both OpenSSL 3.0 and 3.5) |
 

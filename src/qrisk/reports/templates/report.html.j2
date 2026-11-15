@@ -5,16 +5,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{ t.title }}</title>
 <style>
+  /* "Dusk" palette (shared with the author's portfolio): one committed look on screen, and a light
+     paper version for print / PDF. Rating colours are checked for contrast and colour-blind separation
+     (NOTES.md #23, #26 and test_regressions.py). */
   :root {
-    --bg: #f6f7f9; --card: #ffffff; --text: #16191d; --muted: #5d6570; --line: #e3e6ea;
-    /* Rating colours: checked for colour-blind separation and contrast (see NOTES.md #23). */
-    --critical: #b3261e; --vulnerable: #d96500; --hybrid: #2563c9; --safe: #2e7d32; --accent: #3949ab;
+    color-scheme: dark;
+    --bg: #1b1626; --card: #241e33; --text: #f3e8dd; --muted: #a596b0; --line: #4b3f5f;
+    --critical: #e8576b; --vulnerable: #f2b56b; --hybrid: #8f9fd9; --safe: #9ccfb7; --accent: #e98a6a;
   }
-  /* screen only, so printing / PDF export is always light */
-  @media screen and (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      --bg: #111418; --card: #1a1e24; --text: #e8eaed; --muted: #9aa3ad; --line: #2b3038;
-      --critical: #dc3f55; --vulnerable: #c98500; --hybrid: #3987e5; --safe: #3fa45a; --accent: #8c9eff;
+  /* print / PDF: light paper, never the dark screen colours */
+  @media print {
+    :root {
+      color-scheme: light;
+      --bg: #ffffff; --card: #fffaf5; --text: #1b1626; --muted: #64587a; --line: #e6dbe1;
+      --critical: #7a1f36; --vulnerable: #ae5c09; --hybrid: #4149aa; --safe: #2b8265; --accent: #a8492c;
     }
   }
   * { box-sizing: border-box; }
@@ -22,7 +26,7 @@
          font: 15px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans Arabic", "Noto Naskh Arabic", Tahoma, sans-serif; }
   html[dir="rtl"] body { font-size: 16px; line-height: 1.8; }
   main { max-width: 1080px; margin: 0 auto; padding: 32px 16px 64px; }
-  h1 { font-size: 26px; margin: 0 0 4px; } h2 { font-size: 19px; margin: 36px 0 12px; }
+  h1 { font-size: 26px; margin: 0 0 4px; color: var(--accent); } h2 { font-size: 19px; margin: 36px 0 12px; }
   h3 { font-size: 16px; margin: 0 0 10px; font-family: ui-monospace, Consolas, monospace; direction: ltr; text-align: start; }
   html[dir="rtl"] h3 { text-align: right; }
   .muted { color: var(--muted); } .small { font-size: 13px; }
@@ -60,11 +64,10 @@
   }
   @page { size: A4; margin: 14mm 12mm; }
   @media print {
-    :root { color-scheme: light; }
     * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    body { background: #fff; font-size: 12px; }
+    body { font-size: 12px; }
     main { max-width: none; padding: 0; }
-    .card { break-inside: avoid; border-color: #d5d9de; }
+    .card { break-inside: avoid; }
     .target { break-inside: auto; }
     tr { break-inside: avoid; }
     thead { display: table-header-group; }

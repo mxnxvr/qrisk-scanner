@@ -80,11 +80,17 @@ def test_09_the_check_catches_the_original_bug():
 
 
 # --- #10: the PDF would have inherited dark mode ----------------------------------------
+# Revised for the dusk palette (#26): the screen is always dark now, so the guarantee is that
+# the print stylesheet, which the PDF export uses, overrides it with a light paper palette.
 
-def test_10_dark_mode_is_screen_only_so_print_and_pdf_are_light():
+def test_10_print_and_pdf_use_a_light_palette():
     page = render_html(ScanResult())
-    assert "@media screen and (prefers-color-scheme: dark)" in page
-    assert not re.search(r"@media\s*\(prefers-color-scheme:\s*dark\)", page), "dark colours must not apply to print"
+    (screen_card, _), (print_card, _) = _palettes(page)
+    assert page.index("@media print") < page.index(f"--card: {print_card}"), "light palette must live in @media print"
+    lum = lambda h: 0.2126 * _rgb(h)[0] + 0.7152 * _rgb(h)[1] + 0.0722 * _rgb(h)[2]
+    assert lum(print_card) > 0.85 > 0.1 > lum(screen_card)
+    print_text = re.search(r"@media print \{\s*:root \{.*?--text: (#[0-9a-f]{6})", page, re.S).group(1)
+    assert _contrast(print_text, print_card) >= 7
 
 
 # --- #12: --fail-under failed a scan with no findings ----------------------------------------
@@ -160,19 +166,43 @@ def _palettes(page: str) -> list[tuple[str, dict[str, str]]]:
     return [(card, {"critical": c, "vulnerable": v, "hybrid": h, "safe": s}) for _, card, c, v, h, s in blocks]
 
 
-def test_23_rating_colours_are_distinguishable_in_light_and_dark_mode():
+# Colour-blindness simulation (Machado et al. 2009, full severity), applied in linear RGB.
+_CVD = {
+    "protanopia": ((0.152286, 1.052583, -0.204868), (0.114503, 0.786281, 0.099216), (-0.003882, -0.048116, 1.051998)),
+    "deuteranopia": ((0.367322, 0.860646, -0.227968), (0.280085, 0.672501, 0.047413), (-0.011820, 0.042940, 0.968881)),
+    "tritanopia": ((1.255528, -0.076749, -0.178779), (-0.078411, 0.930809, 0.147602), (0.004733, 0.691367, 0.303900)),
+}
+
+
+def _simulate(hex_: str, matrix) -> str:
+    lin = _rgb(hex_)
+    out = [min(1.0, max(0.0, sum(m * c for m, c in zip(row, lin)))) for row in matrix]
+    enc = [12.92 * c if c <= 0.0031308 else 1.055 * c ** (1 / 2.4) - 0.055 for c in out]
+    return "#" + "".join(f"{round(c * 255):02x}" for c in enc)
+
+
+def _worst_cvd_delta(colours: dict[str, str]) -> float:
+    names = list(colours)
+    return min(_delta_e(_simulate(colours[a], m), _simulate(colours[b], m))
+               for i, a in enumerate(names) for b in names[i + 1:] for m in _CVD.values())
+
+
+def test_23_rating_colours_are_distinguishable_on_screen_and_in_print():
     palettes = _palettes(render_html(ScanResult()))
-    assert len(palettes) == 2, "expected a light and a dark palette"
+    assert len(palettes) == 2, "expected a screen and a print palette"
     order = ["critical", "vulnerable", "hybrid", "safe"]
     for card, colours in palettes:
         for a, b in zip(order, order[1:]):
             assert _delta_e(colours[a], colours[b]) >= 15, (card, a, b)
         for name, colour in colours.items():
-            assert _contrast(colour, card) >= 3, (card, name)
+            assert _contrast(colour, card) >= 4.5, (card, name)   # badge text is small: WCAG AA
+        assert _worst_cvd_delta(colours) >= 8, card                # every pair, every colour-blindness type
 
 
 def test_23_the_check_catches_the_original_colours():
     assert _delta_e("#b08f00", "#e8710a") < 15  # the old gold Hybrid vs orange Quantum-vulnerable
+    # and the colour-blindness check is strict enough to have caught the pre-dusk light palette
+    assert _worst_cvd_delta(dict(critical="#b3261e", vulnerable="#d96500", hybrid="#2563c9", safe="#2e7d32")) < 8
 
 
 # --- #24: the summary crashed when output was redirected on Windows (cp1252) -----------------
