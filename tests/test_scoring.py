@@ -75,3 +75,25 @@ def test_critical_findings_never_carry_a_future_deadline():
     for v in verdicts:
         if v.rating is C:
             assert v.nist not in (NIST_2030, NIST_2035), v.reason
+
+
+def test_critical_findings_are_never_labelled_approved_or_deadline_free():
+    """LinkedIn review (NOTES #27): SSH aes128-cbc was rated Critical but its deadline column said
+    'Approved symmetric algorithm (no quantum deadline)', the calmest possible label on the most
+    urgent kind of finding. Check every rule family, ciphers and MACs included."""
+    from qrisk.rules import NIST_SYM, rate_bulk_cipher, rate_ssh_cipher, rate_ssh_hostkey, rate_ssh_mac, rate_tls_version
+    verdicts = [rate_bulk_cipher(c) for c in ("3DES_EDE_CBC_SHA", "RC4_128_SHA", "NULL_SHA", "DES_CBC_SHA", "RC2_CBC_40_MD5",
+                                              "EXPORT_RC4_40_MD5", "AES_128_CBC_SHA", "AES_256_GCM_SHA384",
+                                              "CHACHA20_POLY1305_SHA256", "CAMELLIA_256_CBC_SHA")]
+    verdicts += [rate_ssh_cipher(c) for c in ("3des-cbc", "aes128-cbc", "aes256-cbc", "aes128-ctr",
+                                              "aes256-gcm@openssh.com", "arcfour", "blowfish-cbc")]
+    verdicts += [rate_ssh_mac(m) for m in ("hmac-md5", "hmac-md5-96", "hmac-sha1-96", "umac-64@openssh.com",
+                                           "hmac-sha1", "hmac-sha2-256-etm@openssh.com")]
+    verdicts += [rate_ssh_hostkey(h) for h in ("ssh-rsa", "ssh-dss", "rsa-sha2-256", "ssh-ed25519")]
+    verdicts += [rate_tls_version(v) for v in (0x0300, 0x0301, 0x0302, 0x0303, 0x0304)]
+    critical = [v for v in verdicts if v.rating is C]
+    assert len(critical) >= 12, "the sample must actually contain critical findings"
+    for v in critical:
+        label = v.nist or ""
+        assert v.nist not in (NIST_2030, NIST_2035, NIST_SYM), (v.reason, label)
+        assert "no quantum deadline" not in label and "approved" not in label.lower(), (v.reason, label)

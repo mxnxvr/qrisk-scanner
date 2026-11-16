@@ -22,6 +22,9 @@ NIST_FIPS203 = "NIST FIPS 203 (ML-KEM): approved"
 NIST_FIPS204 = "NIST FIPS 204 (ML-DSA): approved"
 NIST_FIPS205 = "NIST FIPS 205 (SLH-DSA): approved"
 NIST_SYM = "Approved symmetric algorithm (no quantum deadline)"
+# Exploitable today for a reason that has nothing to do with quantum computers (e.g. a weak mode).
+# A Critical finding must never carry NIST_SYM: "approved, no deadline" reads as "nothing to do".
+NIST_WEAK_NOW = "Insecure today (classical attack): fix now, a quantum deadline does not apply"
 # Static RSA is critical *now* (no forward secrecy), so it must not carry a future deadline.
 NIST_RSA_KEX = "Removed in TLS 1.3 (RFC 8446); NIST SP 800-52r2 requires forward secrecy"
 
@@ -340,7 +343,7 @@ def rate_bulk_cipher(text: str) -> Verdict:
                     nist_qsl={128: 1, 192: 3, 256: 5}[size], functions=("encrypt", "decrypt"))
         if mode == "cbc" and "SSH" in t:
             return Verdict(Rating.CRITICAL, "CBC mode in SSH allows plaintext recovery (CVE-2008-5161).",
-                           REC_SSH_REMOVE, NIST_SYM, algo)
+                           REC_SSH_REMOVE, NIST_WEAK_NOW, algo)
         if size == 128:
             return Verdict(Rating.QUANTUM_SAFE,
                            "AES-128 keeps about 64-bit security against Grover's algorithm, which NIST still accepts.",

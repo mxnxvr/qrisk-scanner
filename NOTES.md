@@ -152,6 +152,12 @@ An outside review of the whole code base found these. Several are the kind of bu
 - **Fix to the checks:** Test #23 now also simulates protanopia, deuteranopia and tritanopia (Machado 2009) and requires every rating pair to stay ≥ 8 apart, with ≥ 4.5:1 contrast because badge text is small. Both dusk palettes beat the old validated one (worst case 9.6 / 9.8 vs 2.8). Test #10 now checks that the light palette lives in `@media print`; the generated PDFs were checked to contain only the paper colours.
 - **Lesson:** A visual change is a regression risk like any other. Encode the properties you care about (contrast, separation, print is light) as tests, then the look can change freely.
 
+### 27. A Critical finding was labelled "no quantum deadline" (found by a reader)
+- **Problem:** A PQC engineer commenting on the project's LinkedIn post argued that a quantum-deadline axis files classically broken crypto (3DES, TLS 1.0) under "no quantum deadline", next to AES-256. For 3DES and TLS 1.0 that wasn't true: the rating axis already has **Critical** ("weak even today"), which sorts first, caps the score at 49 and fills the report's "Now" box. But the check turned up one real case: SSH `aes128-cbc` was rated Critical (CVE-2008-5161) while its deadline column said *"Approved symmetric algorithm (no quantum deadline)"*: the calmest label on the most urgent kind of finding.
+- **Cause:** The deadline label described the *algorithm* (AES is approved) rather than the *finding* (CBC in SSH is exploitable). The earlier test (#19) only stopped Critical findings carrying a *future* deadline, and only sampled keys, signatures and key exchange, never ciphers or MACs.
+- **Fix:** A new label, "Insecure today (classical attack): fix now, a quantum deadline does not apply", for findings that are broken for non-quantum reasons. A test runs every rule family, ciphers, SSH ciphers, MACs, host keys and protocol versions included, and fails if any Critical verdict is labelled approved, deadline-free or with a future deadline. It failed before the fix.
+- **Lesson:** Two axes only help if they never contradict each other. Outside review finds what you stopped seeing, and even a critique built on a wrong premise can point at a real bug: check the claim against the code before agreeing or dismissing it.
+
 ---
 
 ## Regression tests
@@ -182,6 +188,7 @@ Every bug above has a test that fails if it comes back.
 | 23, 26 | Rating colours too similar | `test_regressions.py::test_23_…` (screen and print palettes: OKLab ΔE ≥ 15 between neighbouring ratings, ≥ 4.5:1 contrast, and every pair ≥ 8 apart under simulated protanopia, deuteranopia and tritanopia; the old gold/orange pair and the pre-dusk palette are shown to fail) |
 | 24 | `●` crashed piped output on Windows | `test_regressions.py::test_24_…` (runs the CLI as a subprocess with cp1252 output; fails with the bug put back) and the CI smoke test |
 | 25 | Test assumed no ML-KEM in OpenSSL | `test_tls_scan.py::test_scan_local_server` (checks the PQ result against `ssl.OPENSSL_VERSION_INFO`; CI covers both OpenSSL 3.0 and 3.5) |
+| 27 | Critical labelled "no quantum deadline" | `test_scoring.py::test_critical_findings_are_never_labelled_approved_or_deadline_free` (every rule family; failed before the fix) |
 
 Integration tests that need the Docker lab are marked `lab` and **skip** (with the command to start the lab) when it isn't running: a fresh clone shows 94 passed, 5 skipped. CI sets `QRISK_LAB_REQUIRED=1` in its lab job so a lab that fails to start fails the build instead of quietly skipping.
 
